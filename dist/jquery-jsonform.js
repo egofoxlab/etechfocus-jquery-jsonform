@@ -259,6 +259,7 @@ class ComboFieldHandler {
 
 class ComboField {
 
+
 	/**
 	 * Form container
 	 *
@@ -302,6 +303,20 @@ class ComboField {
 	nameKey = 'name';
 
 	/**
+	 * Current data in select. If in `meta` set `typeaheadUrl` option will be saved last result.
+	 *
+	 * @type {object[]|null}
+	 */
+	data = null;
+
+	/**
+	 * Field group/wrap where place field with field.
+	 *
+	 * @type {object|null}
+	 */
+	eFieldGroup = null;
+
+	/**
 	 * Current field.
 	 *
 	 * @type {object|null}
@@ -331,6 +346,43 @@ class ComboField {
 
 		/** @type ComboMeta */
 		this.meta = attrInfo.getMeta(ComboMeta);
+
+		this.beforeInit()
+	}
+
+	/**
+	 * Initialize necessary statements.
+	 */
+	beforeInit() {
+		//	Check if set `typeaheadUrl` option
+		if (this.meta.getTypeaheadUrl()) {
+			this.data = [];
+
+			return;
+		}
+
+		//	If use predefined values
+		if (!Array.isArray(this.meta.getData())) {
+			this.data = [];
+		}
+
+		this.data = this.meta.getData();
+	}
+
+	/**
+	 * Return data.
+	 *
+	 * @returns {object[]}
+	 */
+	getData() {
+		//	Ensure that data is array
+		if (!Array.isArray(this.data)) {
+			return [];
+		}
+
+		//	@todo: Add data filter allow specific properties and throw excess
+
+		return this.data;
 	}
 
 	/**
@@ -342,7 +394,7 @@ class ComboField {
 		//  Select options
 		let options = '';
 
-		this.meta.getData().forEach((item) => {
+		this.getData().forEach((item) => {
 			if (item.value.toString() === this.attrInfo.getValue()) {
 				name = item.name;
 			}
@@ -357,7 +409,7 @@ class ComboField {
 
 		this.eField = $('\
 			<div \
-				class="form-control" \
+				class="form-control form-control-combo" \
 				id="' + this.attrInfo.getId() + '"\
 			>\
 				<select\
@@ -374,7 +426,13 @@ class ComboField {
 			</div>\
       	');
 
-		this.boxBody.append(this.eField);
+		//	Put field in wrap
+		this.eFieldGroup = $('<div class="form-group"></div>');
+		const fieldLabel = $('<label for="' + this.attrInfo.getId() + '">' + this.attrInfo.getName() + '</label>');
+		this.eFieldGroup.append(fieldLabel);
+		this.eFieldGroup.append(this.eField);
+
+		this.boxBody.append(this.eFieldGroup);
 
 		//	Add actions to the field
 		this.addActions();
@@ -391,7 +449,7 @@ class ComboField {
 			fieldInFocus = !fieldInFocus;
 
 			if (fieldInFocus) {
-				this.eActiveDropdownList = this.addDropdownList(this.eField, this.meta.getData());
+				this.eActiveDropdownList = this.addDropdownList(this.eField, this.getData());
 				this.toPosition();
 				//this.toPosition(eField, eActiveDropdownList);
 				this.toSize(this.eField, this.eActiveDropdownList);
@@ -432,13 +490,11 @@ class ComboField {
 			let name = '';
 
 			//	Find name for option
-			if (Array.isArray(this.meta.getData())) {
-				this.meta.getData().forEach((item) => {
-					if (item.value.toString() === value) {
-						name = item.name;
-					}
-				});
-			}
+			this.getData().forEach((item) => {
+				if (item.value.toString() === value) {
+					name = item.name;
+				}
+			});
 
 			this.removeDropdownList(this.eActiveDropdownList);
 
@@ -468,14 +524,9 @@ class ComboField {
 			}
 
 			const value = e.target.value;
-
-			if (!Array.isArray(this.meta.getData())) {
-				return;
-			}
-
 			let items = '';
 
-			this.meta.getData().forEach((item) => {
+			this.getData().forEach((item) => {
 				//	Find matches
 				if (value.length > 0 && item.name.toLowerCase().indexOf(value.toLowerCase()) === -1) {
 					return;
@@ -502,12 +553,6 @@ class ComboField {
 	 * Add dropdown list to DOM and return link to it node.
 	 */
 	addDropdownList() {
-		let data = this.meta.getData();
-
-		if (!Array.isArray(data)) {
-			data = [];
-		}
-
 		const tpl = $('\
 			<div class="combobox">\
 				<div class="combobox-content-wrap">\
@@ -522,7 +567,7 @@ class ComboField {
 			</div>\
 			');
 
-		data.forEach((item) => {
+		this.getData().forEach((item) => {
 			//	Value
 			if (item.value === undefined) {
 				return;

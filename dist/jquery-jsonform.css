@@ -1,3 +1,10 @@
+html body .form-control-combo {
+  -webkit-user-select: none;
+  -moz-user-select: none;
+  -ms-user-select: none;
+  user-select: none;
+  cursor: pointer;
+}
 html body .combobox {
   position: absolute;
   z-index: 999;
