@@ -4,6 +4,7 @@ html {
 
         .combobox {
             position: absolute;
+            z-index: 999;
 
             .combobox-content-wrap {
                 position: relative;
@@ -38,5 +39,5 @@ html {
             }
         }
     }
-
 }
+

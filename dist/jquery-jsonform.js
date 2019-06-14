@@ -1,3 +1,75 @@
+/**
+ * Base meta class for fields.
+ */
+class MetaBase {
+
+	constructor(meta) {
+		this.meta = meta;
+	}
+
+	/**
+	 * Return meta
+	 *
+	 * @returns {object}
+	 */
+	getMeta() {
+		//	Return empty object if meta not defined or empty
+		if (typeof this.meta !== 'object') {
+			return {};
+		}
+
+		return this.meta;
+	}
+
+	/**
+	 * Return field placeholder or default if exists
+	 *
+	 * @param {string} [_default]
+	 * @returns {*}
+	 */
+	getPlaceholder(_default) {
+		if (this.getMeta().placehoder === undefined) {
+			return _default;
+		}
+
+		return this.getMeta().placeholder;
+	}
+
+}
+
+/**
+ * Combo Meta info structured meta info.
+ */
+class ComboMeta extends MetaBase {
+
+	/**
+	 * Return meta `data` if not exists return `null`
+	 *
+	 * @returns {*}
+	 */
+	getData() {
+		if (this.getMeta().data !== undefined) {
+			return this.getMeta().data;
+		}
+
+		return [];
+	}
+
+	/**
+	 * Return `typeaheadUrl` if not exists return `null`.
+	 *
+	 * @returns {*}
+	 */
+	getTypeaheadUrl() {
+		if (this.getMeta().typeaheadUrl !== undefined) {
+			return this.getMeta().typeaheadUrl;
+		}
+
+		return null;
+	}
+
+}
+
 ////////////////////
 // AttrInfo
 ////////////////////
@@ -25,11 +97,27 @@ class AttrInfo {
 		return this.props.value;
 	}
 
-	getMeta() {
+	/**
+	 * Return `meta` property. If set `type` parameter return structured meta object eg getMeta(ComboMeta) return
+	 * instance of the ComboMeta where contained encapsulated meta info.
+	 *
+	 * @param {Function} [type] - Class for meta info
+	 * @returns {*}
+	 */
+	getMeta(
+		//	Class for meta info
+		type
+	) {
+		//	Return `meta` object
+		if (typeof type === 'function') {
+			return new type(this.props.meta);
+		}
+
+		//	Return raw `meta` object
 		return this.props.meta;
 	}
 
-};
+}
 
 ////////////////////
 // ModelInfo
@@ -134,55 +222,26 @@ class HiddenFieldHandler {
 	}
 }
 
+/**
+ * Combo form field
+ */
 class ComboFieldHandler {
 
-	//  Append field
+	/**
+	 * Append field
+	 *
+	 * @param {object} boxBody - Form container
+	 * @param {ModelInfo} modelInfo
+	 * @param {AttrInfo} attrInfo
+	 */
 	appendField(
 		boxBody,
 		modelInfo,
 		attrInfo
 	) {
-		//  Set placeholder for default
-		let name = attrInfo.getPlaceholder('-- Select value --');
-		//  Select options
-		let options = '';
+		const field = new ComboField(boxBody, modelInfo, attrInfo);
 
-		if (Array.isArray(attrInfo.getData())) {
-			attrInfo.getData().forEach((item) => {
-				if (item.value.toString() === attrInfo.getValue()) {
-					name = item.name;
-				}
-
-				options += '<option\
-            value="' + item.value + '"\
-          >\
-            ' + item.name + '\
-          </option>';
-			});
-		}
-
-		const fieldCombobox = $('\
-		<div \
-			class="form-control" \
-			id="' + attrInfo.getId() + '"\
-		>\
-			<select\
-				id="' + attrInfo.getId() + '"\
-				style="display: none;"\
-			>\
-				' + options + '\
-			</select>\
-			<div class="name">\
-				<span>\
-					' + name + '\
-				</span>\
-			</div>\
-		</div>\
-      ');
-
-		boxBody.append(fieldCombobox);
-
-		//this.addActions(fieldCombobox, attrInfo);
+		field.appendField();
 	}
 
 	/**
@@ -194,6 +253,372 @@ class ComboFieldHandler {
 	 */
 	validate(modelInfo, attrInfo) {
 		return true;
+	}
+
+}
+
+class ComboField {
+
+	/**
+	 * Form container
+	 *
+	 * @type {object|null}
+	 */
+	boxBody = null;
+
+	/**
+	 * Model info
+	 *
+	 * @type {ModelInfo|null}
+	 */
+	modelInfo = null;
+
+	/**
+	 * Attribute info
+	 *
+	 * @type {AttrInfo|null}
+	 */
+	attrInfo = null;
+
+	/**
+	 * Meta info
+	 *
+	 * @type {ComboMeta|null}
+	 */
+	meta = null;
+
+	/**
+	 * `value` key in input data
+	 *
+	 * @type {string}
+	 */
+	valueKey = 'value';
+
+	/**
+	 * `name` key in input data
+	 *
+	 * @type {string}
+	 */
+	nameKey = 'name';
+
+	/**
+	 * Current field.
+	 *
+	 * @type {object|null}
+	 */
+	eField = null;
+
+	/**
+	 * Current active dropdown list.
+	 *
+	 * @type {object|null}
+	 */
+	eActiveDropdownList = null;
+
+	/**
+	 * @param {object} boxBody - Form container
+	 * @param {ModelInfo} modelInfo
+	 * @param {AttrInfo} attrInfo
+	 */
+	constructor(
+		boxBody,
+		modelInfo,
+		attrInfo
+	) {
+		this.boxBody = boxBody;
+		this.modelInfo = modelInfo;
+		this.attrInfo = attrInfo;
+
+		/** @type ComboMeta */
+		this.meta = attrInfo.getMeta(ComboMeta);
+	}
+
+	/**
+	 * Append field
+	 */
+	appendField() {
+		//  Set placeholder for default
+		let name = this.meta.getPlaceholder('-- Select value --');
+		//  Select options
+		let options = '';
+
+		this.meta.getData().forEach((item) => {
+			if (item.value.toString() === this.attrInfo.getValue()) {
+				name = item.name;
+			}
+
+			options += '\
+				<option\
+					value="' + item.value + '"\
+				>\
+					' + item.name + '\
+				</option>';
+		});
+
+		this.eField = $('\
+			<div \
+				class="form-control" \
+				id="' + this.attrInfo.getId() + '"\
+			>\
+				<select\
+					id="' + this.attrInfo.getId() + '"\
+					style="display: none;"\
+				>\
+					' + options + '\
+				</select>\
+				<div class="name">\
+					<span>\
+						' + name + '\
+					</span>\
+				</div>\
+			</div>\
+      	');
+
+		this.boxBody.append(this.eField);
+
+		//	Add actions to the field
+		this.addActions();
+	}
+
+	/**
+	 * Add actions for the field
+	 */
+	addActions() {
+		const eBody = $('body');
+		let fieldInFocus = false;
+
+		this.eField.on('click', () => {
+			fieldInFocus = !fieldInFocus;
+
+			if (fieldInFocus) {
+				this.eActiveDropdownList = this.addDropdownList(this.eField, this.meta.getData());
+				this.toPosition();
+				//this.toPosition(eField, eActiveDropdownList);
+				this.toSize(this.eField, this.eActiveDropdownList);
+
+				this.eActiveDropdownList.find('.combobox-search input').focus();
+			} else {
+				this.removeDropdownList(this.eActiveDropdownList);
+			}
+		});
+
+		//	Hide dropdown list if click outside of the field or dropdown list
+		$(document).on('click', (e) => {
+			if (fieldInFocus === null || !this.eActiveDropdownList) {
+				return;
+			}
+
+			const eTarget = $(e.target);
+
+			//	Skip if click on field or dropdown list
+			if (//	Form field match
+				this.eField.is(eTarget) || this.eField.has(eTarget).length !== 0 ||
+				//	Dropdown list
+				this.eActiveDropdownList.is(eTarget) || this.eActiveDropdownList.has(eTarget).length !== 0
+			) {
+				return;
+			}
+
+			//	Remove dropdown list if click outside of field of dropdown list
+			this.removeDropdownList();
+
+			fieldInFocus = false;
+		});
+
+		//	Hide dropdown list select item
+		eBody.on('click', '.combobox-item', (e) => {
+			const eTarget = $(e.target).closest('.combobox-item');
+			const value = eTarget.attr('data-value').toString();
+			let name = '';
+
+			//	Find name for option
+			if (Array.isArray(this.meta.getData())) {
+				this.meta.getData().forEach((item) => {
+					if (item.value.toString() === value) {
+						name = item.name;
+					}
+				});
+			}
+
+			this.removeDropdownList(this.eActiveDropdownList);
+
+			fieldInFocus = false;
+
+			//	Update form field value
+			this.eField.find('select').val(value);
+			this.eField.find('.name span').text(name);
+		});
+
+		//	Reposition list
+		$(window).on('resize', () => {
+			//	Position only dropdown list that lead to this field
+			if (!fieldInFocus) {
+				return;
+			}
+
+			this.toPosition(this.eActiveDropdownList);
+			this.toSize(this.eActiveDropdownList);
+		});
+
+		//	Dropdown search
+		eBody.on('keyup', '.combobox-search', (e) => {
+			//	Skip if not active
+			if (!this.eActiveDropdownList) {
+				return;
+			}
+
+			const value = e.target.value;
+
+			if (!Array.isArray(this.meta.getData())) {
+				return;
+			}
+
+			let items = '';
+
+			this.meta.getData().forEach((item) => {
+				//	Find matches
+				if (value.length > 0 && item.name.toLowerCase().indexOf(value.toLowerCase()) === -1) {
+					return;
+				}
+
+				items += '\
+						<div class="combobox-item" data-value="' + item.value + '">\
+							<span class="name">\
+								' + item.name + '\
+							</span>\
+						</div>\
+						';
+			});
+
+			this.eActiveDropdownList.find('.combobox-content')
+				.empty()
+				.html(items);
+
+			this.toPosition();
+		});
+	}
+
+	/**
+	 * Add dropdown list to DOM and return link to it node.
+	 */
+	addDropdownList() {
+		let data = this.meta.getData();
+
+		if (!Array.isArray(data)) {
+			data = [];
+		}
+
+		const tpl = $('\
+			<div class="combobox">\
+				<div class="combobox-content-wrap">\
+					<div class="combobox-search">\
+						<input \
+							type="text" \
+							class="form-control"\
+							>\
+					</div>\
+					<div class="combobox-content"></div>\
+				</div>\
+			</div>\
+			');
+
+		data.forEach((item) => {
+			//	Value
+			if (item.value === undefined) {
+				return;
+			}
+
+			const value = item.value;
+
+			//	Name
+			let name = item.name;
+
+			if (name === undefined) {
+				name = '';
+			}
+
+			tpl.find('.combobox-content').append($('\
+				<div class="combobox-item" data-value="' + value + '">\
+					<span class="name">\
+						' + name + '\
+					</span>\
+				</div>\
+				'));
+		});
+
+		$('body').append(tpl);
+
+		return tpl;
+	}
+
+	/**
+	 * Remove active combobox
+	 */
+	removeDropdownList() {
+		$(this.eActiveDropdownList).remove();
+	}
+
+	/**
+	 * Move dropdown list to right position near the active field
+	 */
+	toPosition() {
+		const eSearch = this.eActiveDropdownList.find('.combobox-search');
+		const searchHeight = parseFloat(eSearch.outerHeight());
+		const eContent = this.eActiveDropdownList.find('.combobox-content');
+		const dropdownListHeight = parseFloat(this.eActiveDropdownList.outerHeight());
+		const scrollTop = parseFloat($(window).scrollTop());
+		const borderWidth = parseFloat(this.eActiveDropdownList.find('.combobox-content-wrap').css('borderWidth'));
+
+		let top = this.eField.offset().top + this.eField.outerHeight() - borderWidth;
+		let atBottom = true;
+
+		//	Check that dropdown list not out of document height
+		if (top + dropdownListHeight > scrollTop + $(window).height()) {
+			//	Move dropdown list top of the field
+			top = this.eField.offset().top - dropdownListHeight + borderWidth;
+			atBottom = false;
+		}
+
+		this.eActiveDropdownList.css({
+			left: this.eField.offset().left + 'px',
+			top: top + 'px'
+		});
+
+		//	Align search field
+		//	Align search at bottom
+		if (atBottom) {
+			eSearch.css({
+				top: 0,
+				bottom: ''
+			});
+			eContent.css({
+				marginTop: eSearch.outerHeight() + 'px',
+				marginBottom: 0
+			});
+		}
+		//	Align search field at top
+		else {
+			eSearch.css({
+				top: '',
+				bottom: 0
+			});
+			eContent.css({
+				marginTop: 0,
+				marginBottom: eSearch.outerHeight() + 'px'
+			});
+		}
+	}
+
+	/**
+	 * Resize dropdown list fit to field
+	 */
+	toSize() {
+		//	Skip if dropdown list now not open
+		if (!this.eActiveDropdownList) {
+			return;
+		}
+
+		this.eActiveDropdownList.width(this.eField.outerWidth() + 'px');
 	}
 
 }
